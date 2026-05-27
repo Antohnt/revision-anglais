@@ -37,6 +37,7 @@
         .btn-secondary:hover { background: #3d5a8a; }
         .btn-danger { background: #e74c3c; color: #fff; }
         .btn-danger:hover { background: #ff6b6b; }
+        .btn-small { padding: 8px 16px; font-size: 0.85rem; }
         .center { text-align: center; }
         .input-group { margin: 20px 0; text-align: center; }
         .input-group label { display: block; margin-bottom: 10px; font-size: 1.1rem; }
@@ -102,6 +103,18 @@
         .mode-option .mode-title { font-weight: 600; color: #eee; font-size: 0.95rem; }
         .mode-option .mode-desc { color: #888; font-size: 0.8rem; margin-top: 3px; }
         .retype-instruction { color: #f39c12; font-size: 0.9rem; margin-top: 8px; font-style: italic; }
+        .login-box { max-width: 350px; margin: 0 auto; }
+        .login-box .input-group { margin: 30px 0; }
+        .user-badge { text-align: center; color: #4fc3f7; font-size: 0.85rem; margin-bottom: 15px; }
+        .user-badge span { background: #0f3460; padding: 4px 12px; border-radius: 12px; }
+        .sync-section { margin-top: 25px; padding-top: 20px; border-top: 1px solid #333; }
+        .sync-section h3 { font-size: 0.9rem; color: #aaa; margin-bottom: 10px; }
+        .sync-textarea {
+            background: #0f3460; border: 1px solid #333; color: #4fc3f7; padding: 10px;
+            border-radius: 6px; width: 100%; min-height: 60px; font-size: 0.75rem;
+            font-family: monospace; resize: vertical; margin: 8px 0;
+        }
+        .sync-msg { font-size: 0.8rem; color: #2ecc71; margin-top: 5px; text-align: center; }
     </style>
 </head>
 <body>
@@ -109,8 +122,26 @@
         <h1>Revision Anglais</h1>
         <p class="subtitle">Apprends ton vocabulaire avec la repetition espacee</p>
 
+        <!-- ECRAN LOGIN -->
+        <div class="screen active" id="screen-login">
+            <div class="login-box">
+                <div class="input-group">
+                    <label for="login-input">Entre ton identifiant :</label>
+                    <input type="text" id="login-input" placeholder="ex: anton, marie..." autocomplete="off">
+                </div>
+                <div class="center">
+                    <button class="btn" id="btn-login">Commencer</button>
+                </div>
+                <p style="text-align:center; color:#666; font-size:0.8rem; margin-top:15px;">
+                    Chaque identifiant a ses propres statistiques.<br>
+                    Utilise le meme identifiant sur tous tes appareils.
+                </p>
+            </div>
+        </div>
+
         <!-- ECRAN ACCUEIL -->
-        <div class="screen active" id="screen-home">
+        <div class="screen" id="screen-home">
+            <div class="user-badge">Connecte : <span id="user-display"></span></div>
             <div class="global-stats" id="global-stats"></div>
             <div class="category-select">
                 <label>Categories :</label>
@@ -144,7 +175,21 @@
                 <button class="btn" id="btn-start">Lancer la revision</button>
             </div>
             <div class="buttons-row" style="margin-top:20px">
-                <button class="btn btn-secondary" id="btn-reset">Reinitialiser les stats</button>
+                <button class="btn btn-secondary btn-small" id="btn-logout">Changer d'identifiant</button>
+                <button class="btn btn-secondary btn-small" id="btn-reset">Reinitialiser mes stats</button>
+            </div>
+
+            <div class="sync-section">
+                <h3>Synchroniser entre appareils :</h3>
+                <div class="buttons-row" style="margin-top:5px">
+                    <button class="btn btn-secondary btn-small" id="btn-export">Copier mes stats</button>
+                    <button class="btn btn-secondary btn-small" id="btn-import">Importer des stats</button>
+                </div>
+                <textarea class="sync-textarea" id="sync-area" style="display:none;" placeholder="Colle ici le code de tes stats..."></textarea>
+                <div class="buttons-row" id="import-confirm" style="display:none; margin-top:5px">
+                    <button class="btn btn-small" id="btn-import-confirm">Valider l'import</button>
+                </div>
+                <div class="sync-msg" id="sync-msg"></div>
             </div>
         </div>
 
@@ -328,11 +373,14 @@ const WORDS = [
     {fr:"legerement", en:"slightly", cat:"Statistiques"},
 ];
 
-const STORAGE_KEY = 'anglais_revision_stats';
+// --- STATS ---
+let currentUser = null;
+let userStats = {};
 
-function getStats() { const raw = localStorage.getItem(STORAGE_KEY); return raw ? JSON.parse(raw) : {}; }
-function saveStats(stats) { localStorage.setItem(STORAGE_KEY, JSON.stringify(stats)); }
-function getWordStat(stats, wk) { if (!stats[wk]) stats[wk] = { correct: 0, wrong: 0, lastSeen: 0, streak: 0 }; return stats[wk]; }
+function storageKey() { return 'rev_' + currentUser; }
+function loadLocalStats() { const r = localStorage.getItem(storageKey()); return r ? JSON.parse(r) : {}; }
+function saveLocalStats() { localStorage.setItem(storageKey(), JSON.stringify(userStats)); }
+function getWordStat(wk) { if (!userStats[wk]) userStats[wk] = { correct: 0, wrong: 0, lastSeen: 0, streak: 0 }; return userStats[wk]; }
 function wKey(word) { return word.fr + '|||' + word.en; }
 
 function getWeight(stat) {
@@ -345,9 +393,8 @@ function getWeight(stat) {
 }
 
 function selectWords(pool, count) {
-    const stats = getStats();
     count = Math.min(count, pool.length);
-    const weighted = pool.map(w => ({ word: w, weight: Math.max(getWeight(getWordStat(stats, wKey(w))), 0.1) }));
+    const weighted = pool.map(w => ({ word: w, weight: Math.max(getWeight(getWordStat(wKey(w))), 0.1) }));
     const selected = [];
     const remaining = [...weighted];
     for (let i = 0; i < count; i++) {
@@ -368,14 +415,7 @@ function checkAnswer(userAnswer, correctAnswer) {
     if (norm === correct) return true;
     return correct.split('/').map(s => s.trim()).some(alt => norm === alt);
 }
-
-function shuffle(arr) {
-    for (let i = arr.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-}
+function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
 
 // --- APP STATE ---
 let currentWords = [];
@@ -386,20 +426,16 @@ let correctCount = 0;
 let isRetryRound = false;
 let answered = false;
 let currentMode = 'retype-visible';
-
-// retype state
-// phase: 'answer' | 'retype-visible' | 'retype-hidden'
 let phase = 'answer';
 
 const screens = document.querySelectorAll('.screen');
 function showScreen(id) { screens.forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
-
 function getCategories() { const cats = new Set(); WORDS.forEach(w => cats.add(w.cat)); return [...cats]; }
 
 function renderHome() {
-    const stats = getStats();
+    document.getElementById('user-display').textContent = currentUser;
     let seen = 0, totalCorrect = 0, totalWrong = 0;
-    WORDS.forEach(w => { const s = stats[wKey(w)]; if (s && (s.correct + s.wrong) > 0) { seen++; totalCorrect += s.correct; totalWrong += s.wrong; } });
+    WORDS.forEach(w => { const s = userStats[wKey(w)]; if (s && (s.correct + s.wrong) > 0) { seen++; totalCorrect += s.correct; totalWrong += s.wrong; } });
     document.getElementById('global-stats').innerHTML = `
         <div class="stat-card"><div class="value">${WORDS.length}</div><div class="label">Mots total</div></div>
         <div class="stat-card"><div class="value">${seen}</div><div class="label">Deja vus</div></div>
@@ -408,9 +444,29 @@ function renderHome() {
     document.getElementById('category-checkboxes').innerHTML = getCategories().map(c =>
         `<label><input type="checkbox" value="${c}" checked> ${c} (${WORDS.filter(w=>w.cat===c).length})</label>`
     ).join('');
+    document.getElementById('sync-area').style.display = 'none';
+    document.getElementById('import-confirm').style.display = 'none';
+    document.getElementById('sync-msg').textContent = '';
 }
 
 function getSelectedCategories() { return [...document.querySelectorAll('#category-checkboxes input:checked')].map(cb => cb.value); }
+
+function login() {
+    const input = document.getElementById('login-input');
+    const id = input.value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    if (!id) { alert('Entre un identifiant valide (lettres, chiffres, tirets)'); return; }
+    currentUser = id;
+    localStorage.setItem('revision_last_user', id);
+    userStats = loadLocalStats();
+    renderHome();
+    showScreen('screen-home');
+}
+
+function logout() {
+    currentUser = null;
+    showScreen('screen-login');
+    document.getElementById('login-input').value = '';
+}
 
 function startQuiz() {
     const count = parseInt(document.getElementById('number-input').value) || 20;
@@ -419,13 +475,8 @@ function startQuiz() {
     if (pool.length === 0) { alert('Selectionne au moins une categorie !'); return; }
     currentMode = document.querySelector('input[name="mode"]:checked').value;
     currentWords = selectWords(pool, count);
-    currentIndex = 0;
-    wrongThisRound = [];
-    sessionResults = [];
-    correctCount = 0;
-    isRetryRound = false;
-    answered = false;
-    phase = 'answer';
+    currentIndex = 0; wrongThisRound = []; sessionResults = []; correctCount = 0;
+    isRetryRound = false; answered = false; phase = 'answer';
     showScreen('screen-quiz');
     showWord();
 }
@@ -435,22 +486,18 @@ function showWord() {
     document.getElementById('word-french').textContent = word.fr;
     document.getElementById('word-hint').textContent = isRetryRound ? '(rattrapage)' : `Categorie : ${word.cat}`;
     const input = document.getElementById('answer-input');
-    input.value = '';
-    input.className = 'answer-input';
-    input.placeholder = 'Tape la traduction en anglais...';
+    input.value = ''; input.className = 'answer-input'; input.placeholder = 'Tape la traduction en anglais...';
     document.getElementById('feedback').className = 'feedback';
     document.getElementById('feedback-text').innerHTML = '';
     document.getElementById('correct-answer').textContent = '';
     document.getElementById('btn-validate').style.display = 'inline-block';
+    document.getElementById('btn-validate').textContent = 'Valider';
     document.getElementById('btn-next').style.display = 'none';
-    answered = false;
-    phase = 'answer';
-
+    answered = false; phase = 'answer';
     const total = currentWords.length;
     document.getElementById('quiz-progress').textContent = `${currentIndex + 1} / ${total}`;
     document.getElementById('quiz-score').textContent = `${correctCount} correct`;
     document.getElementById('progress-fill').style.width = `${(currentIndex / total) * 100}%`;
-
     input.focus();
 }
 
@@ -473,7 +520,7 @@ function validate() {
             correctAnswerEl.textContent = word.en;
             correctCount++;
             if (!isRetryRound) sessionResults.push({ word, correct: true });
-            const stats = getStats(); const stat = getWordStat(stats, wKey(word)); stat.correct++; stat.streak++; stat.lastSeen = Date.now(); saveStats(stats);
+            const stat = getWordStat(wKey(word)); stat.correct++; stat.streak++; stat.lastSeen = Date.now(); saveLocalStats();
             document.getElementById('btn-validate').style.display = 'none';
             document.getElementById('btn-next').style.display = 'inline-block';
         } else {
@@ -483,21 +530,18 @@ function validate() {
             correctAnswerEl.textContent = word.en;
             wrongThisRound.push(word);
             if (!isRetryRound) sessionResults.push({ word, correct: false });
-            const stats = getStats(); const stat = getWordStat(stats, wKey(word)); stat.wrong++; stat.streak = 0; stat.lastSeen = Date.now(); saveStats(stats);
+            const stat = getWordStat(wKey(word)); stat.wrong++; stat.streak = 0; stat.lastSeen = Date.now(); saveLocalStats();
 
             if (currentMode === 'retype-visible') {
                 phase = 'retype-visible';
-                input.value = '';
-                input.className = 'answer-input retype';
+                input.value = ''; input.className = 'answer-input retype';
                 input.placeholder = 'Recopie la bonne reponse...';
-                document.getElementById('btn-validate').textContent = 'Valider';
                 input.focus();
             } else if (currentMode === 'retype-hidden') {
                 phase = 'retype-hidden-showing';
-                input.value = '';
-                input.className = 'answer-input retype';
-                input.placeholder = 'Memorise la correction puis appuie sur Entree ou Valider...';
-                document.getElementById('btn-validate').textContent = 'OK, je l\'ai memorise';
+                input.value = ''; input.className = 'answer-input retype';
+                input.placeholder = 'Memorise la correction puis appuie sur Entree...';
+                document.getElementById('btn-validate').textContent = "J'ai memorise";
                 input.focus();
             } else {
                 document.getElementById('btn-validate').style.display = 'none';
@@ -513,20 +557,15 @@ function validate() {
             document.getElementById('feedback-text').textContent = 'Bien recopie !';
             document.getElementById('correct-answer').textContent = '';
             document.getElementById('btn-validate').style.display = 'none';
-            document.getElementById('btn-validate').textContent = 'Valider';
             document.getElementById('btn-next').style.display = 'inline-block';
             phase = 'done';
         } else {
-            input.className = 'answer-input wrong';
-            input.value = '';
-            input.focus();
+            input.className = 'answer-input wrong'; input.value = ''; input.focus();
         }
     } else if (phase === 'retype-hidden-showing') {
-        // user acknowledged seeing the correction, now hide it and ask to retype
         phase = 'retype-hidden';
         const input = document.getElementById('answer-input');
-        input.value = '';
-        input.className = 'answer-input retype';
+        input.value = ''; input.className = 'answer-input retype';
         input.placeholder = 'Retape la reponse de memoire...';
         document.getElementById('feedback').className = 'feedback retype show';
         document.getElementById('feedback-text').innerHTML = '<div class="retype-instruction">Retape la bonne reponse de memoire !</div>';
@@ -546,14 +585,12 @@ function validate() {
             document.getElementById('btn-next').style.display = 'inline-block';
             phase = 'done';
         } else {
-            // wrong again: show correction again and go back to showing phase
             input.className = 'answer-input wrong';
             document.getElementById('feedback').className = 'feedback wrong show';
             document.getElementById('feedback-text').innerHTML = `Pas tout a fait...<div class="your-answer">Ta reponse : ${input.value || '(vide)'}</div>`;
             document.getElementById('correct-answer').textContent = word.en;
-            input.value = '';
-            input.placeholder = 'Memorise puis appuie sur Entree...';
-            document.getElementById('btn-validate').textContent = 'OK, je l\'ai memorise';
+            input.value = ''; input.placeholder = 'Memorise puis appuie sur Entree...';
+            document.getElementById('btn-validate').textContent = "J'ai memorise";
             phase = 'retype-hidden-showing';
             input.focus();
         }
@@ -565,17 +602,10 @@ function next() {
     currentIndex++;
     if (currentIndex >= currentWords.length) {
         if (wrongThisRound.length > 0) {
-            currentWords = shuffle([...wrongThisRound]);
-            wrongThisRound = [];
-            currentIndex = 0;
-            isRetryRound = true;
-            showWord();
-        } else {
-            showSummary();
-        }
-    } else {
-        showWord();
-    }
+            currentWords = shuffle([...wrongThisRound]); wrongThisRound = [];
+            currentIndex = 0; isRetryRound = true; showWord();
+        } else { showSummary(); }
+    } else { showWord(); }
 }
 
 function showSummary() {
@@ -595,26 +625,88 @@ function showSummary() {
     `).join('');
 }
 
+// --- SYNC ---
+function exportStats() {
+    const data = btoa(unescape(encodeURIComponent(JSON.stringify(userStats))));
+    const area = document.getElementById('sync-area');
+    area.style.display = 'block';
+    area.value = data;
+    area.select();
+    navigator.clipboard.writeText(data).then(() => {
+        document.getElementById('sync-msg').textContent = 'Code copie dans le presse-papier !';
+    }).catch(() => {
+        document.getElementById('sync-msg').textContent = 'Selectionne et copie le code ci-dessus.';
+    });
+    document.getElementById('import-confirm').style.display = 'none';
+}
+
+function showImport() {
+    const area = document.getElementById('sync-area');
+    area.style.display = 'block';
+    area.value = '';
+    area.placeholder = 'Colle ici le code copie depuis l\'autre appareil...';
+    area.focus();
+    document.getElementById('import-confirm').style.display = 'flex';
+    document.getElementById('sync-msg').textContent = '';
+}
+
+function confirmImport() {
+    const area = document.getElementById('sync-area');
+    const data = area.value.trim();
+    if (!data) { document.getElementById('sync-msg').textContent = 'Colle d\'abord un code !'; return; }
+    try {
+        const parsed = JSON.parse(decodeURIComponent(escape(atob(data))));
+        // Merge: keep the best stats (highest correct, sum wrong, latest timestamp)
+        for (const key of Object.keys(parsed)) {
+            if (!userStats[key]) {
+                userStats[key] = parsed[key];
+            } else {
+                userStats[key].correct = Math.max(userStats[key].correct, parsed[key].correct);
+                userStats[key].wrong = Math.max(userStats[key].wrong, parsed[key].wrong);
+                userStats[key].lastSeen = Math.max(userStats[key].lastSeen, parsed[key].lastSeen);
+                userStats[key].streak = Math.max(userStats[key].streak, parsed[key].streak);
+            }
+        }
+        saveLocalStats();
+        renderHome();
+        document.getElementById('sync-msg').textContent = 'Stats importees et fusionnees !';
+    } catch(e) {
+        document.getElementById('sync-msg').textContent = 'Code invalide, verifie que tu as bien copie.';
+    }
+}
+
 // --- EVENTS ---
+document.getElementById('btn-login').addEventListener('click', login);
+document.getElementById('login-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); login(); } });
+document.getElementById('btn-logout').addEventListener('click', logout);
 document.getElementById('btn-start').addEventListener('click', startQuiz);
 document.getElementById('btn-validate').addEventListener('click', validate);
 document.getElementById('btn-next').addEventListener('click', next);
 document.getElementById('btn-home').addEventListener('click', () => { renderHome(); showScreen('screen-home'); });
 document.getElementById('btn-quit').addEventListener('click', () => { if (confirm('Quitter la serie en cours ?')) { renderHome(); showScreen('screen-home'); } });
-document.getElementById('btn-reset').addEventListener('click', () => { if (confirm('Reinitialiser toutes les statistiques ?')) { localStorage.removeItem(STORAGE_KEY); renderHome(); } });
+document.getElementById('btn-reset').addEventListener('click', () => {
+    if (confirm('Reinitialiser toutes tes statistiques ?')) { userStats = {}; saveLocalStats(); renderHome(); }
+});
+document.getElementById('btn-export').addEventListener('click', exportStats);
+document.getElementById('btn-import').addEventListener('click', showImport);
+document.getElementById('btn-import-confirm').addEventListener('click', confirmImport);
 
 document.getElementById('answer-input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
         e.preventDefault();
-        if (phase === 'done' || (phase === 'answer' && answered)) {
-            next();
-        } else {
-            validate();
-        }
+        if (phase === 'done' || (phase === 'answer' && answered)) next();
+        else validate();
     }
 });
 
-renderHome();
+// --- INIT ---
+const savedUser = localStorage.getItem('revision_last_user');
+if (savedUser) {
+    currentUser = savedUser;
+    userStats = loadLocalStats();
+    renderHome();
+    showScreen('screen-home');
+}
 </script>
 </body>
 </html>
