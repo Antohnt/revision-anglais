@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Revision Anglais</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: #16213e;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 700px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        h1 { text-align: center; margin-bottom: 10px; color: #4fc3f7; font-size: 1.8rem; }
+        .subtitle { text-align: center; color: #888; margin-bottom: 30px; font-size: 0.9rem; }
+        .screen { display: none; }
+        .screen.active { display: block; }
+        .btn {
+            background: #4fc3f7; color: #1a1a2e; border: none; padding: 12px 30px;
+            border-radius: 8px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+        }
+        .btn:hover { background: #81d4fa; transform: translateY(-1px); }
+        .btn:active { transform: translateY(0); }
+        .btn-secondary { background: #2d4a7a; color: #eee; }
+        .btn-secondary:hover { background: #3d5a8a; }
+        .btn-danger { background: #e74c3c; color: #fff; }
+        .btn-danger:hover { background: #ff6b6b; }
+        .center { text-align: center; }
+        .input-group { margin: 20px 0; text-align: center; }
+        .input-group label { display: block; margin-bottom: 10px; font-size: 1.1rem; }
+        .input-group input, .input-group select {
+            background: #0f3460; border: 2px solid #4fc3f7; color: #eee; padding: 12px 20px;
+            border-radius: 8px; font-size: 1.1rem; width: 100%; max-width: 400px; outline: none; text-align: center;
+        }
+        .input-group input:focus, .input-group select:focus { border-color: #81d4fa; box-shadow: 0 0 10px rgba(79,195,247,0.3); }
+        .word-display { background: #0f3460; border-radius: 12px; padding: 25px; margin: 20px 0; text-align: center; }
+        .word-french { font-size: 1.4rem; font-weight: 600; color: #fff; margin-bottom: 5px; }
+        .word-hint { font-size: 0.85rem; color: #666; }
+        .answer-input {
+            background: #0f3460; border: 2px solid #333; color: #eee; padding: 14px 20px;
+            border-radius: 8px; font-size: 1.1rem; width: 100%; outline: none; margin: 15px 0; transition: border-color 0.3s;
+        }
+        .answer-input:focus { border-color: #4fc3f7; }
+        .answer-input.correct { border-color: #2ecc71; background: #1a3d2a; }
+        .answer-input.wrong { border-color: #e74c3c; background: #3d1a1a; }
+        .answer-input.retype { border-color: #f39c12; background: #3d2e0a; }
+        .feedback { padding: 20px; border-radius: 8px; margin: 15px 0; font-size: 1rem; display: none; }
+        .feedback.show { display: block; }
+        .feedback.correct { background: #1a3d2a; border: 2px solid #2ecc71; color: #2ecc71; }
+        .feedback.wrong { background: #3d1a1a; border: 2px solid #e74c3c; color: #ff6b6b; }
+        .feedback.retype { background: #3d2e0a; border: 2px solid #f39c12; color: #f39c12; }
+        .feedback .correct-answer {
+            color: #fff; font-weight: 700; font-size: 1.5rem; margin-top: 10px;
+            padding: 10px; background: rgba(255,255,255,0.05); border-radius: 6px; text-align: center;
+        }
+        .feedback .your-answer { color: #e74c3c; font-size: 0.9rem; margin-top: 6px; text-decoration: line-through; }
+        .progress-bar { background: #0f3460; border-radius: 20px; height: 8px; margin: 15px 0; overflow: hidden; }
+        .progress-bar .fill { background: linear-gradient(90deg, #4fc3f7, #81d4fa); height: 100%; border-radius: 20px; transition: width 0.4s ease; }
+        .stats-line { display: flex; justify-content: space-between; color: #888; font-size: 0.85rem; margin-bottom: 10px; }
+        .buttons-row { display: flex; gap: 10px; justify-content: center; margin-top: 20px; flex-wrap: wrap; }
+        .summary-item { display: flex; justify-content: space-between; padding: 10px 15px; background: #0f3460; border-radius: 8px; margin: 8px 0; align-items: center; }
+        .summary-item .fr { color: #aaa; }
+        .summary-item .en { color: #4fc3f7; font-weight: 500; }
+        .summary-item.was-wrong { border-left: 3px solid #e74c3c; }
+        .summary-item.was-right { border-left: 3px solid #2ecc71; }
+        .summary-scroll { max-height: 300px; overflow-y: auto; margin: 15px 0; }
+        .global-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 20px 0; }
+        .stat-card { background: #0f3460; border-radius: 8px; padding: 15px; text-align: center; }
+        .stat-card .value { font-size: 1.5rem; font-weight: 700; color: #4fc3f7; }
+        .stat-card .label { font-size: 0.75rem; color: #888; margin-top: 4px; }
+        .category-select { margin: 20px 0; }
+        .category-select label { display: block; margin-bottom: 8px; color: #aaa; }
+        .checkbox-group { display: flex; flex-wrap: wrap; gap: 8px; }
+        .checkbox-group label {
+            background: #0f3460; padding: 8px 14px; border-radius: 6px; cursor: pointer;
+            font-size: 0.85rem; border: 1px solid #333; transition: all 0.2s;
+        }
+        .checkbox-group label:has(input:checked) { border-color: #4fc3f7; background: #1a3d5e; }
+        .checkbox-group input { display: none; }
+        #number-input { max-width: 100px; }
+        .mode-select { margin: 20px 0; }
+        .mode-select label { display: block; margin-bottom: 8px; color: #aaa; }
+        .mode-options { display: flex; flex-direction: column; gap: 8px; }
+        .mode-option {
+            background: #0f3460; padding: 12px 16px; border-radius: 8px; cursor: pointer;
+            border: 2px solid #333; transition: all 0.2s;
+        }
+        .mode-option:has(input:checked) { border-color: #4fc3f7; background: #1a3d5e; }
+        .mode-option input { display: none; }
+        .mode-option .mode-title { font-weight: 600; color: #eee; font-size: 0.95rem; }
+        .mode-option .mode-desc { color: #888; font-size: 0.8rem; margin-top: 3px; }
+        .retype-instruction { color: #f39c12; font-size: 0.9rem; margin-top: 8px; font-style: italic; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Revision Anglais</h1>
+        <p class="subtitle">Apprends ton vocabulaire avec la repetition espacee</p>
+
+        <!-- ECRAN ACCUEIL -->
+        <div class="screen active" id="screen-home">
+            <div class="global-stats" id="global-stats"></div>
+            <div class="category-select">
+                <label>Categories :</label>
+                <div class="checkbox-group" id="category-checkboxes"></div>
+            </div>
+            <div class="mode-select">
+                <label>Mode de revision :</label>
+                <div class="mode-options">
+                    <label class="mode-option">
+                        <input type="radio" name="mode" value="retype-visible" checked>
+                        <div class="mode-title">Recopier avec correction</div>
+                        <div class="mode-desc">Quand tu te trompes, la correction s'affiche et tu dois la recopier</div>
+                    </label>
+                    <label class="mode-option">
+                        <input type="radio" name="mode" value="retype-hidden">
+                        <div class="mode-title">Recopier sans correction</div>
+                        <div class="mode-desc">La correction s'affiche brievement, puis tu dois la retaper de memoire</div>
+                    </label>
+                    <label class="mode-option">
+                        <input type="radio" name="mode" value="classic">
+                        <div class="mode-title">Classique</div>
+                        <div class="mode-desc">La correction s'affiche, tu cliques suivant</div>
+                    </label>
+                </div>
+            </div>
+            <div class="input-group">
+                <label for="number-input">Combien de mots/phrases pour cette serie ?</label>
+                <input type="number" id="number-input" min="5" max="200" value="20">
+            </div>
+            <div class="center">
+                <button class="btn" id="btn-start">Lancer la revision</button>
+            </div>
+            <div class="buttons-row" style="margin-top:20px">
+                <button class="btn btn-secondary" id="btn-reset">Reinitialiser les stats</button>
+            </div>
+        </div>
+
+        <!-- ECRAN QUESTION -->
+        <div class="screen" id="screen-quiz">
+            <div class="stats-line">
+                <span id="quiz-progress">1 / 20</span>
+                <span id="quiz-score">0 correct</span>
+            </div>
+            <div class="progress-bar"><div class="fill" id="progress-fill"></div></div>
+            <div class="word-display">
+                <div class="word-french" id="word-french"></div>
+                <div class="word-hint" id="word-hint"></div>
+            </div>
+            <input type="text" class="answer-input" id="answer-input" placeholder="Tape la traduction en anglais..." autocomplete="off" spellcheck="false">
+            <div class="feedback" id="feedback">
+                <div id="feedback-text"></div>
+                <div class="correct-answer" id="correct-answer"></div>
+            </div>
+            <div class="buttons-row">
+                <button class="btn" id="btn-validate" style="display:block;">Valider</button>
+                <button class="btn" id="btn-next" style="display:none;">Suivant</button>
+                <button class="btn btn-danger" id="btn-quit">Quitter</button>
+            </div>
+        </div>
+
+        <!-- ECRAN RESUME -->
+        <div class="screen" id="screen-summary">
+            <h2 style="margin-bottom:15px; color:#4fc3f7;">Serie terminee !</h2>
+            <div class="global-stats" id="summary-stats"></div>
+            <h3 style="margin:15px 0 10px; font-size:0.95rem; color:#aaa;">Detail :</h3>
+            <div class="summary-scroll" id="summary-list"></div>
+            <div class="buttons-row">
+                <button class="btn" id="btn-home">Retour</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+const WORDS = [
+    {fr:"il n'aurait pas du choisir", en:"he shouldn't have chosen", cat:"Conjugaison"},
+    {fr:"il a rencontre", en:"he met", cat:"Conjugaison"},
+    {fr:"il aurait du etre construit", en:"it should have been built", cat:"Conjugaison"},
+    {fr:"il n'a pas repondu", en:"he didn't reply", cat:"Conjugaison"},
+    {fr:"il avait rencontre", en:"he had met", cat:"Conjugaison"},
+    {fr:"je ne configurerais pas", en:"I wouldn't configure", cat:"Conjugaison"},
+    {fr:"je suis en train de configurer", en:"I am configuring", cat:"Conjugaison"},
+    {fr:"il a ete imprime", en:"it was printed", cat:"Conjugaison"},
+    {fr:"il a visite", en:"he visited", cat:"Conjugaison"},
+    {fr:"il serait choisi", en:"it would be chosen", cat:"Conjugaison"},
+    {fr:"il configurerait", en:"he would configure", cat:"Conjugaison"},
+    {fr:"il aurait du choisir", en:"he should have chosen", cat:"Conjugaison"},
+    {fr:"il pourrait etre configure", en:"it could be configured", cat:"Conjugaison"},
+    {fr:"il aurait du envoyer", en:"he should have sent", cat:"Conjugaison"},
+    {fr:"je me suis reveille", en:"I woke up", cat:"Conjugaison"},
+    {fr:"il aurait du etre envoye", en:"it should have been sent", cat:"Conjugaison"},
+    {fr:"il a pu configurer", en:"he could configure", cat:"Conjugaison"},
+    {fr:"je ne repondrai pas", en:"I will not answer", cat:"Conjugaison"},
+    {fr:"il a ete choisi", en:"it was chosen", cat:"Conjugaison"},
+    {fr:"il a demande", en:"he asked", cat:"Conjugaison"},
+    {fr:"il a vu", en:"he saw", cat:"Conjugaison"},
+    {fr:"il n'a pas configure", en:"he didn't configure", cat:"Conjugaison"},
+    {fr:"il sera configure", en:"it will be configured", cat:"Conjugaison"},
+    {fr:"il n'aurait pas choisi", en:"he wouldn't have chosen", cat:"Conjugaison"},
+    {fr:"il n'aurait pas du choisir", en:"he shouldn't have chosen", cat:"Conjugaison"},
+    {fr:"il n'avait pas configure", en:"he hadn't configured", cat:"Conjugaison"},
+    {fr:"il a imprime", en:"he printed", cat:"Conjugaison"},
+    {fr:"il avait ete configure", en:"it had been configured", cat:"Conjugaison"},
+    {fr:"il n'aurait pas du etre construit", en:"it shouldn't have been built", cat:"Conjugaison"},
+    {fr:"il a pu choisir", en:"he could choose", cat:"Conjugaison"},
+    {fr:"il a pu voir", en:"he could see", cat:"Conjugaison"},
+    {fr:"il visitera", en:"he will visit", cat:"Conjugaison"},
+    {fr:"j'avais configure", en:"I had configured", cat:"Conjugaison"},
+
+    {fr:"a distance", en:"remotely", cat:"Reseau"},
+    {fr:"acces distant", en:"remote access", cat:"Reseau"},
+    {fr:"acheminement", en:"routing", cat:"Reseau"},
+    {fr:"acheminer", en:"carry", cat:"Reseau"},
+    {fr:"acquittement", en:"acknowledgement", cat:"Reseau"},
+    {fr:"adresse de bouclage", en:"loopback address", cat:"Reseau"},
+    {fr:"ajouter", en:"add", cat:"Reseau"},
+    {fr:"alloue", en:"allocated", cat:"Reseau"},
+    {fr:"assigner", en:"assign", cat:"Reseau"},
+    {fr:"assurer", en:"ensure", cat:"Reseau"},
+    {fr:"authentification", en:"authentication", cat:"Reseau"},
+    {fr:"authentifie", en:"authenticated", cat:"Reseau"},
+    {fr:"baie de brassage", en:"switching cabinet", cat:"Reseau"},
+    {fr:"bande passante", en:"bandwidth", cat:"Reseau"},
+    {fr:"boitier", en:"housing", cat:"Reseau"},
+    {fr:"borne WIFI", en:"WIFI hotspot", cat:"Reseau"},
+    {fr:"boucle locale", en:"local loop", cat:"Reseau"},
+    {fr:"cablage", en:"wiring", cat:"Reseau"},
+    {fr:"cable", en:"wired", cat:"Reseau"},
+    {fr:"chiffrement", en:"encryption", cat:"Reseau"},
+    {fr:"commutateur", en:"switch", cat:"Reseau"},
+    {fr:"composant", en:"component", cat:"Reseau"},
+    {fr:"configurer", en:"set up", cat:"Reseau"},
+    {fr:"contrainte", en:"constraint", cat:"Reseau"},
+    {fr:"couche", en:"layer", cat:"Reseau"},
+    {fr:"debit", en:"flow rate", cat:"Reseau"},
+    {fr:"dedie", en:"dedicated", cat:"Reseau"},
+    {fr:"demande / requete", en:"request", cat:"Reseau"},
+    {fr:"depannage", en:"troubleshooting", cat:"Reseau"},
+    {fr:"depanner", en:"troubleshoot", cat:"Reseau"},
+    {fr:"dependance a", en:"dependence on", cat:"Reseau"},
+    {fr:"destinataire", en:"recipient", cat:"Reseau"},
+    {fr:"diagnostic", en:"diagnosis", cat:"Reseau"},
+    {fr:"diagnostiquer", en:"diagnose", cat:"Reseau"},
+    {fr:"diffuser", en:"broadcast", cat:"Reseau"},
+    {fr:"dimensionnement", en:"sizing", cat:"Reseau"},
+    {fr:"dysfonctionnement", en:"malfunctioning", cat:"Reseau"},
+    {fr:"en-tete IP", en:"IP header", cat:"Reseau"},
+    {fr:"encapsuler", en:"encapsulate", cat:"Reseau"},
+    {fr:"enlever", en:"remove", cat:"Reseau"},
+    {fr:"etendre", en:"extend", cat:"Reseau"},
+    {fr:"evolutif", en:"scalable", cat:"Reseau"},
+    {fr:"expediteur", en:"sender", cat:"Reseau"},
+    {fr:"faciliter", en:"facilitate", cat:"Reseau"},
+    {fr:"falsifier", en:"forge", cat:"Reseau"},
+    {fr:"fiabilite", en:"reliability", cat:"Reseau"},
+    {fr:"filtrer", en:"filter", cat:"Reseau"},
+    {fr:"flux", en:"flow", cat:"Reseau"},
+    {fr:"heritage", en:"legacy", cat:"Reseau"},
+    {fr:"integre", en:"built-in", cat:"Reseau"},
+    {fr:"liaison / lien", en:"link", cat:"Reseau"},
+    {fr:"materiau", en:"material", cat:"Reseau"},
+    {fr:"materiel", en:"equipment", cat:"Reseau"},
+    {fr:"noeud", en:"node", cat:"Reseau"},
+    {fr:"norme non-proprietaire", en:"non-owned standard", cat:"Reseau"},
+    {fr:"norme proprietaire", en:"proprietary standard", cat:"Reseau"},
+    {fr:"panne", en:"breakdown", cat:"Reseau"},
+    {fr:"passerelle", en:"gateway", cat:"Reseau"},
+    {fr:"periodicite", en:"periodicity", cat:"Reseau"},
+    {fr:"perte", en:"loss", cat:"Reseau"},
+    {fr:"perturbateur (adjectif)", en:"disruptive", cat:"Reseau"},
+    {fr:"perturbateur (nom)", en:"disruptor", cat:"Reseau"},
+    {fr:"perturbation", en:"disturbance", cat:"Reseau"},
+    {fr:"plan d'adressage", en:"address plan", cat:"Reseau"},
+    {fr:"poste de travail", en:"workstation", cat:"Reseau"},
+    {fr:"protocole de niveau superieur", en:"higher-level protocol", cat:"Reseau"},
+    {fr:"ralentissement", en:"slow-down", cat:"Reseau"},
+    {fr:"rayon de couverture", en:"radius coverage", cat:"Reseau"},
+    {fr:"redondance", en:"redundancy", cat:"Reseau"},
+    {fr:"rendement", en:"efficiency", cat:"Reseau"},
+    {fr:"repartition de charge", en:"load-balancing", cat:"Reseau"},
+    {fr:"sauvegarde", en:"backup", cat:"Reseau"},
+    {fr:"sauvegarder", en:"back up", cat:"Reseau"},
+    {fr:"schema", en:"diagram", cat:"Reseau"},
+    {fr:"sectoriser", en:"sectorise", cat:"Reseau"},
+    {fr:"table de routage", en:"routing table", cat:"Reseau"},
+    {fr:"tache", en:"task", cat:"Reseau"},
+    {fr:"telecharger", en:"download", cat:"Reseau"},
+    {fr:"televerser / charger / envoyer", en:"upload", cat:"Reseau"},
+    {fr:"terminaux", en:"terminals", cat:"Reseau"},
+    {fr:"trame", en:"frame", cat:"Reseau"},
+    {fr:"transmettre", en:"transmit", cat:"Reseau"},
+
+    {fr:"augmentation", en:"increase", cat:"Statistiques"},
+    {fr:"graphique avec des barres", en:"bar chart", cat:"Statistiques"},
+    {fr:"ligne brisee (type de ligne)", en:"broken line", cat:"Statistiques"},
+    {fr:"case (dans un tableur)", en:"cell", cat:"Statistiques"},
+    {fr:"colonne (dans un tableur)", en:"column", cat:"Statistiques"},
+    {fr:"courbe", en:"curve", cat:"Statistiques"},
+    {fr:"ligne en pointilles (type de ligne)", en:"dotted line", cat:"Statistiques"},
+    {fr:"schema avec des etapes et des fleches", en:"flow chart", cat:"Statistiques"},
+    {fr:"ligne fluctuante", en:"fluctuating line", cat:"Statistiques"},
+    {fr:"graphique en lignes", en:"line chart", cat:"Statistiques"},
+    {fr:"sommet d'une courbe", en:"peak", cat:"Statistiques"},
+    {fr:"graphique circulaire", en:"pie chart", cat:"Statistiques"},
+    {fr:"ligne (dans un tableur)", en:"row", cat:"Statistiques"},
+    {fr:"ligne pleine (type de ligne)", en:"solid line", cat:"Statistiques"},
+    {fr:"tableau", en:"table", cat:"Statistiques"},
+    {fr:"creux d'une courbe", en:"trough", cat:"Statistiques"},
+    {fr:"au dessus de la moyenne", en:"above average", cat:"Statistiques"},
+    {fr:"croissance", en:"growth", cat:"Statistiques"},
+    {fr:"de facon constante", en:"steadily", cat:"Statistiques"},
+    {fr:"de facon graduelle", en:"gradually", cat:"Statistiques"},
+    {fr:"de facon spectaculaire", en:"dramatically", cat:"Statistiques"},
+    {fr:"en dessous de la moyenne", en:"below average", cat:"Statistiques"},
+    {fr:"en moyenne", en:"on average", cat:"Statistiques"},
+    {fr:"legerement", en:"slightly", cat:"Statistiques"},
+];
+
+const STORAGE_KEY = 'anglais_revision_stats';
+
+function getStats() { const raw = localStorage.getItem(STORAGE_KEY); return raw ? JSON.parse(raw) : {}; }
+function saveStats(stats) { localStorage.setItem(STORAGE_KEY, JSON.stringify(stats)); }
+function getWordStat(stats, wk) { if (!stats[wk]) stats[wk] = { correct: 0, wrong: 0, lastSeen: 0, streak: 0 }; return stats[wk]; }
+function wKey(word) { return word.fr + '|||' + word.en; }
+
+function getWeight(stat) {
+    const now = Date.now();
+    const daysSinceSeen = stat.lastSeen ? (now - stat.lastSeen) / (1000*60*60*24) : 30;
+    const total = stat.correct + stat.wrong;
+    if (total === 0) return 3;
+    const errorRate = stat.wrong / (total + 1);
+    return 1 + errorRate * 8 + Math.min(daysSinceSeen / 3, 4) - Math.min(stat.streak * 0.3, 2);
+}
+
+function selectWords(pool, count) {
+    const stats = getStats();
+    count = Math.min(count, pool.length);
+    const weighted = pool.map(w => ({ word: w, weight: Math.max(getWeight(getWordStat(stats, wKey(w))), 0.1) }));
+    const selected = [];
+    const remaining = [...weighted];
+    for (let i = 0; i < count; i++) {
+        const totalWeight = remaining.reduce((sum, item) => sum + item.weight, 0);
+        let random = Math.random() * totalWeight;
+        let chosen = remaining.length - 1;
+        for (let j = 0; j < remaining.length; j++) { random -= remaining[j].weight; if (random <= 0) { chosen = j; break; } }
+        selected.push(remaining[chosen].word);
+        remaining.splice(chosen, 1);
+    }
+    return selected;
+}
+
+function normalize(str) { return str.toLowerCase().trim().replace(/['']/g, "'").replace(/\s+/g, ' '); }
+function checkAnswer(userAnswer, correctAnswer) {
+    const norm = normalize(userAnswer);
+    const correct = normalize(correctAnswer);
+    if (norm === correct) return true;
+    return correct.split('/').map(s => s.trim()).some(alt => norm === alt);
+}
+
+function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
+
+// --- APP STATE ---
+let currentWords = [];
+let currentIndex = 0;
+let wrongThisRound = [];
+let sessionResults = [];
+let correctCount = 0;
+let isRetryRound = false;
+let answered = false;
+let currentMode = 'retype-visible';
+
+// retype state
+// phase: 'answer' | 'retype-visible' | 'retype-hidden'
+let phase = 'answer';
+
+const screens = document.querySelectorAll('.screen');
+function showScreen(id) { screens.forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+
+function getCategories() { const cats = new Set(); WORDS.forEach(w => cats.add(w.cat)); return [...cats]; }
+
+function renderHome() {
+    const stats = getStats();
+    let seen = 0, totalCorrect = 0, totalWrong = 0;
+    WORDS.forEach(w => { const s = stats[wKey(w)]; if (s && (s.correct + s.wrong) > 0) { seen++; totalCorrect += s.correct; totalWrong += s.wrong; } });
+    document.getElementById('global-stats').innerHTML = `
+        <div class="stat-card"><div class="value">${WORDS.length}</div><div class="label">Mots total</div></div>
+        <div class="stat-card"><div class="value">${seen}</div><div class="label">Deja vus</div></div>
+        <div class="stat-card"><div class="value">${totalCorrect + totalWrong > 0 ? Math.round(totalCorrect / (totalCorrect + totalWrong) * 100) : 0}%</div><div class="label">Taux reussite</div></div>
+    `;
+    document.getElementById('category-checkboxes').innerHTML = getCategories().map(c =>
+        `<label><input type="checkbox" value="${c}" checked> ${c} (${WORDS.filter(w=>w.cat===c).length})</label>`
+    ).join('');
+}
+
+function getSelectedCategories() { return [...document.querySelectorAll('#category-checkboxes input:checked')].map(cb => cb.value); }
+
+function startQuiz() {
+    const count = parseInt(document.getElementById('number-input').value) || 20;
+    const selectedCats = getSelectedCategories();
+    const pool = WORDS.filter(w => selectedCats.includes(w.cat));
+    if (pool.length === 0) { alert('Selectionne au moins une categorie !'); return; }
+    currentMode = document.querySelector('input[name="mode"]:checked').value;
+    currentWords = selectWords(pool, count);
+    currentIndex = 0;
+    wrongThisRound = [];
+    sessionResults = [];
+    correctCount = 0;
+    isRetryRound = false;
+    answered = false;
+    phase = 'answer';
+    showScreen('screen-quiz');
+    showWord();
+}
+
+function showWord() {
+    const word = currentWords[currentIndex];
+    document.getElementById('word-french').textContent = word.fr;
+    document.getElementById('word-hint').textContent = isRetryRound ? '(rattrapage)' : `Categorie : ${word.cat}`;
+    const input = document.getElementById('answer-input');
+    input.value = '';
+    input.className = 'answer-input';
+    input.placeholder = 'Tape la traduction en anglais...';
+    document.getElementById('feedback').className = 'feedback';
+    document.getElementById('feedback-text').innerHTML = '';
+    document.getElementById('correct-answer').textContent = '';
+    document.getElementById('btn-validate').style.display = 'inline-block';
+    document.getElementById('btn-next').style.display = 'none';
+    answered = false;
+    phase = 'answer';
+
+    const total = currentWords.length;
+    document.getElementById('quiz-progress').textContent = `${currentIndex + 1} / ${total}`;
+    document.getElementById('quiz-score').textContent = `${correctCount} correct`;
+    document.getElementById('progress-fill').style.width = `${(currentIndex / total) * 100}%`;
+
+    input.focus();
+}
+
+function validate() {
+    if (phase === 'answer') {
+        if (answered) return;
+        answered = true;
+        const word = currentWords[currentIndex];
+        const input = document.getElementById('answer-input');
+        const userAnswer = input.value;
+        const isCorrect = checkAnswer(userAnswer, word.en);
+        const feedback = document.getElementById('feedback');
+        const feedbackText = document.getElementById('feedback-text');
+        const correctAnswerEl = document.getElementById('correct-answer');
+
+        if (isCorrect) {
+            input.className = 'answer-input correct';
+            feedback.className = 'feedback correct show';
+            feedbackText.textContent = 'Correct !';
+            correctAnswerEl.textContent = word.en;
+            correctCount++;
+            if (!isRetryRound) sessionResults.push({ word, correct: true });
+            const stats = getStats(); const stat = getWordStat(stats, wKey(word)); stat.correct++; stat.streak++; stat.lastSeen = Date.now(); saveStats(stats);
+            document.getElementById('btn-validate').style.display = 'none';
+            document.getElementById('btn-next').style.display = 'inline-block';
+        } else {
+            input.className = 'answer-input wrong';
+            feedback.className = 'feedback wrong show';
+            feedbackText.innerHTML = `Mauvaise reponse !<div class="your-answer">Ta reponse : ${userAnswer || '(vide)'}</div>`;
+            correctAnswerEl.textContent = word.en;
+            wrongThisRound.push(word);
+            if (!isRetryRound) sessionResults.push({ word, correct: false });
+            const stats = getStats(); const stat = getWordStat(stats, wKey(word)); stat.wrong++; stat.streak = 0; stat.lastSeen = Date.now(); saveStats(stats);
+
+            if (currentMode === 'retype-visible') {
+                phase = 'retype-visible';
+                input.value = '';
+                input.className = 'answer-input retype';
+                input.placeholder = 'Recopie la bonne reponse...';
+                document.getElementById('btn-validate').textContent = 'Valider';
+                input.focus();
+            } else if (currentMode === 'retype-hidden') {
+                phase = 'retype-hidden-showing';
+                input.value = '';
+                input.className = 'answer-input retype';
+                input.placeholder = 'Memorise la correction puis appuie sur Entree ou Valider...';
+                document.getElementById('btn-validate').textContent = 'OK, je l\'ai memorise';
+                input.focus();
+            } else {
+                document.getElementById('btn-validate').style.display = 'none';
+                document.getElementById('btn-next').style.display = 'inline-block';
+            }
+        }
+    } else if (phase === 'retype-visible') {
+        const word = currentWords[currentIndex];
+        const input = document.getElementById('answer-input');
+        if (checkAnswer(input.value, word.en)) {
+            input.className = 'answer-input correct';
+            document.getElementById('feedback').className = 'feedback correct show';
+            document.getElementById('feedback-text').textContent = 'Bien recopie !';
+            document.getElementById('correct-answer').textContent = '';
+            document.getElementById('btn-validate').style.display = 'none';
+            document.getElementById('btn-validate').textContent = 'Valider';
+            document.getElementById('btn-next').style.display = 'inline-block';
+            phase = 'done';
+        } else {
+            input.className = 'answer-input wrong';
+            input.value = '';
+            input.focus();
+        }
+    } else if (phase === 'retype-hidden-showing') {
+        // user acknowledged seeing the correction, now hide it and ask to retype
+        phase = 'retype-hidden';
+        const input = document.getElementById('answer-input');
+        input.value = '';
+        input.className = 'answer-input retype';
+        input.placeholder = 'Retape la reponse de memoire...';
+        document.getElementById('feedback').className = 'feedback retype show';
+        document.getElementById('feedback-text').innerHTML = '<div class="retype-instruction">Retape la bonne reponse de memoire !</div>';
+        document.getElementById('correct-answer').textContent = '';
+        document.getElementById('btn-validate').textContent = 'Valider';
+        input.focus();
+    } else if (phase === 'retype-hidden') {
+        const word = currentWords[currentIndex];
+        const input = document.getElementById('answer-input');
+        if (checkAnswer(input.value, word.en)) {
+            input.className = 'answer-input correct';
+            document.getElementById('feedback').className = 'feedback correct show';
+            document.getElementById('feedback-text').textContent = 'Parfait !';
+            document.getElementById('correct-answer').textContent = '';
+            document.getElementById('btn-validate').style.display = 'none';
+            document.getElementById('btn-validate').textContent = 'Valider';
+            document.getElementById('btn-next').style.display = 'inline-block';
+            phase = 'done';
+        } else {
+            // wrong again: show correction again and go back to showing phase
+            input.className = 'answer-input wrong';
+            document.getElementById('feedback').className = 'feedback wrong show';
+            document.getElementById('feedback-text').innerHTML = `Pas tout a fait...<div class="your-answer">Ta reponse : ${input.value || '(vide)'}</div>`;
+            document.getElementById('correct-answer').textContent = word.en;
+            input.value = '';
+            input.placeholder = 'Memorise puis appuie sur Entree...';
+            document.getElementById('btn-validate').textContent = 'OK, je l\'ai memorise';
+            phase = 'retype-hidden-showing';
+            input.focus();
+        }
+    }
+}
+
+function next() {
+    document.getElementById('btn-validate').textContent = 'Valider';
+    currentIndex++;
+    if (currentIndex >= currentWords.length) {
+        if (wrongThisRound.length > 0) {
+            currentWords = shuffle([...wrongThisRound]);
+            wrongThisRound = [];
+            currentIndex = 0;
+            isRetryRound = true;
+            showWord();
+        } else {
+            showSummary();
+        }
+    } else {
+        showWord();
+    }
+}
+
+function showSummary() {
+    showScreen('screen-summary');
+    const total = sessionResults.length;
+    const correct = sessionResults.filter(r => r.correct).length;
+    document.getElementById('summary-stats').innerHTML = `
+        <div class="stat-card"><div class="value">${total}</div><div class="label">Mots</div></div>
+        <div class="stat-card"><div class="value">${correct}</div><div class="label">Corrects</div></div>
+        <div class="stat-card"><div class="value">${total - correct}</div><div class="label">Erreurs</div></div>
+    `;
+    document.getElementById('summary-list').innerHTML = sessionResults.map(r => `
+        <div class="summary-item ${r.correct ? 'was-right' : 'was-wrong'}">
+            <span class="fr">${r.word.fr}</span>
+            <span class="en">${r.word.en}</span>
+        </div>
+    `).join('');
+}
+
+// --- EVENTS ---
+document.getElementById('btn-start').addEventListener('click', startQuiz);
+document.getElementById('btn-validate').addEventListener('click', validate);
+document.getElementById('btn-next').addEventListener('click', next);
+document.getElementById('btn-home').addEventListener('click', () => { renderHome(); showScreen('screen-home'); });
+document.getElementById('btn-quit').addEventListener('click', () => { if (confirm('Quitter la serie en cours ?')) { renderHome(); showScreen('screen-home'); } });
+document.getElementById('btn-reset').addEventListener('click', () => { if (confirm('Reinitialiser toutes les statistiques ?')) { localStorage.removeItem(STORAGE_KEY); renderHome(); } });
+
+document.getElementById('answer-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        if (phase === 'done' || (phase === 'answer' && answered)) {
+            next();
+        } else {
+            validate();
+        }
+    }
+});
+
+renderHome();
+</script>
+</body>
+</html>
